@@ -39,6 +39,30 @@ pip install --user --editable .
 
 ### Usage
 
+Once installed, `ciphy` should be able to be used from the bash shell directly. 
+
+Test it out by invoking the help flag:
+
+```bash
+ciphy -h
+```
+
+#### Commands
+
+There are a variety of commands related to password encryption, generation, strength testing, & descryption. All commands are listed below.
+
+- c1
+- c2
+- c3
+- c4
+
+#### Example
+
+Here is an example usage that uses all available commands. 
+
+
+
+
 ### License
 
 MIT License
