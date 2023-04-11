@@ -31,7 +31,9 @@ pip install --user --editable .
 ```
 
 <br>
+
 *Please note that is also possible to install this in a virtual environement or container like `venv`, `conda`, `pipenv`, `docker`, etc. At the moment, I have not written installation intructions for those environments, but the changes to make `ciphy` work in those environments should be small.*  
+
 <br>
 
 
