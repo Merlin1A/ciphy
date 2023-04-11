@@ -174,8 +174,3 @@ class PasswordGenerator:
                 combined.pop()
 
         return ''.join(combined)
-
-# # Example usage
-# password_generator = PasswordGenerator()
-# password = password_generator.generate_password(password_length=10, num_pseudo_words=2)
-# print(password)
