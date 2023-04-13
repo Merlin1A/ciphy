@@ -116,10 +116,14 @@ class AESCipher:
 
             derived_key = kdf.derive(password.encode())
             aesgcm = AESGCM(derived_key)
-            plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+            
+            try:
+                plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+                with open(out_filename, 'wb') as outfile:
+                    outfile.write(plaintext)
+            except Exception as e:
+                print("Incorrect password. Please try again.")
 
-            with open(out_filename, 'wb') as outfile:
-                outfile.write(plaintext)
 
     def load_password(self, filename):
         """
