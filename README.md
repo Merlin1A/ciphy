@@ -55,11 +55,6 @@ There are a variety of commands related to password encryption, generation, stre
 - encrypt
 - decrypt
 
-#### Example
-
-Here is an example usage that uses all available commands. 
-
-
 ### License
 
 MIT License
