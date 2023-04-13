@@ -51,16 +51,13 @@ ciphy -h
 
 There are a variety of commands related to password encryption, generation, strength testing, & descryption. All commands are listed below.
 
-- c1
-- c2
-- c3
-- c4
+- gen_pass 
+- encrypt
+- decrypt
 
 #### Example
 
 Here is an example usage that uses all available commands. 
-
-
 
 
 ### License
