@@ -1,80 +1,56 @@
 import gc
 import os
 import struct
-import hashlib
 import secrets
-from Crypto.Cipher import AES
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
 
 class AESCipher:
     """
-    A class for encrypting and decrypting files using AES 256.
-
-    Attributes:
-        key (bytes): The encryption key.
+    A class for encrypting and decrypting files using AES-GCM.
 
     Methods:
-        __init__(self, key=None): Initializes the AESCipher object.
-        _generate_key(self): Generates a new random encryption key.
-        encrypt_file(self, in_filename, out_filename=None, chunksize=64*1024): Encrypts a file.
-        decrypt_file(self, in_filename, out_filename=None, chunksize=24*1024): Decrypts a file.
-        print_key(self): Prints the encryption key to stdout.
-        save_key(self, filename): Saves the encryption key to a file.
+        encrypt_file(self, in_filename, out_filename=None, password=None): Encrypts a file.
+        decrypt_file(self, in_filename, out_filename=None, password=None): Decrypts a file.
+        load_password(self, filename): Loads a password from a file.
     """
 
-    def __init__(self, key=None):
+    def __init__(self):
         """
         Initializes the AESCipher object.
-
-        Parameters
-        ----------
-        key (str) : 
-            The encryption key as a hex string. If None, generates a new key.
-
         """
-        if key is None:
-            key = self._generate_key()
-        self.key = hashlib.sha256(key.encode()).digest()
+        pass
 
     def __del__(self):
         """
-        Zero out memory.
+        Cleans up the AESCipher object.
         """
-        del self.key
-        gc.collect()
+        pass
 
-    def _generate_key(self):
+    def encrypt_file(self, in_filename, out_filename=None, override=True, password=None):
         """
-        Generates a new random encryption key.
-
-        Returns
-        ----------
-        str
-            A hex string representing the new encryption key.
-        """
-        return secrets.token_hex(32)
-
-    def encrypt_file(self, in_filename, out_filename=None, chunksize=64*1024, override=True):
-        """
-        Encrypts a file using AES 256.
+        Encrypts a file using AES-GCM with a password-based key derivation function.
 
         Parameters
         ----------
         in_filename : str
             The input file path.
-        out_filename : str
-            The output file path. If None, replaces the file suffix with ".enc".
-        chunksize : int 
-            The size of the file chunks to read and write.
-        override : bool 
-            Whether to delete or override the existing encrypted file.
+        out_filename : str, optional
+            The output file path. If None, replaces the file suffix with ".enc" (default: None).
+        override : bool, optional
+            Whether to delete or override the existing encrypted file (default: True).
+        password : str
+            The password used for key derivation.
 
         Returns
-        ----------
+        -------
         None
         """
         if not out_filename:
             out_filename = os.path.splitext(in_filename)[0] + '.enc'
-            
+
         if not override:
             i = 1
             while os.path.exists(out_filename):
@@ -83,28 +59,30 @@ class AESCipher:
         elif os.path.exists(out_filename):
             os.remove(out_filename)
 
-        iv = os.urandom(16)
-        encryptor = AES.new(self.key, AES.MODE_CBC, iv)
-        filesize = os.path.getsize(in_filename)
+        salt = os.urandom(16)
+        backend = default_backend()
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+            backend=backend
+        )
 
+        derived_key = kdf.derive(password.encode())
+        aesgcm = AESGCM(derived_key)
+        nonce = os.urandom(12)
         with open(in_filename, 'rb') as infile:
+            data = infile.read()
+            ciphertext = aesgcm.encrypt(nonce, data, None)
             with open(out_filename, 'wb') as outfile:
-                outfile.write(struct.pack('<Q', filesize))
-                outfile.write(iv)
+                outfile.write(nonce)
+                outfile.write(salt)
+                outfile.write(ciphertext)
 
-                while True:
-                    chunk = infile.read(chunksize)
-                    if len(chunk) == 0:
-                        break
-                    elif len(chunk) % 16 != 0:
-                        chunk += b' ' * (16 - len(chunk) % 16)
-
-                    outfile.write(encryptor.encrypt(chunk))
-
-
-    def decrypt_file(self, in_filename, out_filename=None, chunksize=24*1024):
+    def decrypt_file(self, in_filename, out_filename=None, password=None):
         """
-        Decrypts a file that was encrypted using AES 256.
+        Decrypts a file that was encrypted using AES-GCM.
 
         Parameters
         ----------
@@ -112,8 +90,8 @@ class AESCipher:
             The input file path.
         out_filename : str
             The output file path. If None, removes the ".enc" extension from the input filename.
-        chunksize : int
-            The size of the file chunks to read and write.
+        password : str
+            The password used for key derivation.
 
         Returns
         ----------
@@ -123,51 +101,43 @@ class AESCipher:
             out_filename = os.path.splitext(in_filename)[0]
 
         with open(in_filename, 'rb') as infile:
-            filesize = struct.unpack('<Q', infile.read(struct.calcsize('Q')))[0]
-            iv = infile.read(16)
-            decryptor = AES.new(self.key, AES.MODE_CBC, iv)
+            nonce = infile.read(12)
+            salt = infile.read(16)
+            ciphertext = infile.read()
+
+            backend = default_backend()
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=100000,
+                backend=backend
+            )
+
+            derived_key = kdf.derive(password.encode())
+            aesgcm = AESGCM(derived_key)
+            plaintext = aesgcm.decrypt(nonce, ciphertext, None)
 
             with open(out_filename, 'wb') as outfile:
-                while True:
-                    chunk = infile.read(chunksize)
-                    if len(chunk) == 0:
-                        break
-                    outfile.write(decryptor.decrypt(chunk))
+                outfile.write(plaintext)
 
-                outfile.truncate(filesize)
-
-
-    def print_key(self):
+    def load_password(self, filename):
         """
-        Prints the encryption key to stdout.
-        """
-        print(self.key.hex())
-
-    def save_key_to_file(self, key, file_path):
-        # Set umask to 0o077, which ensures the file will be created with secure permissions (rw-------, 0600)
-        old_umask = os.umask(0o077)
-        
-        try:
-            with open(file_path, "wb") as key_file:
-                key_file.write(key)
-        finally:
-            # Restore the original umask
-            os.umask(old_umask)
-
-    def load_key(self, filename):
-        """
-        Loads an encryption key from a file.
+        Loads a password from a file.
 
         Parameters
         ----------
-        filename : str 
-            The name of the file containing the key.
+        filename : str
+            The name of the file containing the password.
 
         Returns
         ----------
-        None
+        str
+            The password read from the file.
         """
-        with open(filename, 'rb') as f:
-            self.key = f.read()
+        with open(filename, 'r') as f:
+            password = f.read()
+        return password
 
 
+    
