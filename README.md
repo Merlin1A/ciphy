@@ -60,4 +60,4 @@ There are a variety of commands related to password encryption, generation, stre
 MIT License
 
 ### Disclamer
-Disclamer Ciphify is currently in active development, and there likely will be breaking changes. There are no guarantees, either implied or explicit, made by this software or me at this stage.
+*__Disclamer__* _Ciphify is currently in active development, and there likely will be breaking changes. There are no guarantees, either implied or explicit, made by this software or me at this stage._
