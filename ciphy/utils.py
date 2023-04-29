@@ -1,4 +1,5 @@
 import csv
+import yaml
 
 def load_passwords(filename):
     """
@@ -18,3 +19,9 @@ def load_passwords(filename):
         reader = csv.reader(f)
         passwords = list(reader)
     return passwords
+
+
+def read_config(file_path):
+    with open(file_path, 'r') as file:
+        config_data = yaml.safe_load(file)
+    return config_data
