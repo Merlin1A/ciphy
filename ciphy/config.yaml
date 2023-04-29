@@ -1,2 +1,2 @@
-default_encrypted_file_path: None
-encrypted_file_path: None
+encrypted_passwords_file_path: ~/.passwords.enc
+
