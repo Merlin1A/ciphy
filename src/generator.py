@@ -1,97 +1,81 @@
 import secrets
 import string
 import yaml
-import gc
+
 
 class WordGenerator:
     """
     A class to generate pseudo-words using predefined components.
-
-    Attributes
-    ----------
-    initial_consonants : list
-        A list of characters representing possible initial consonants.
-    final_consonants : list
-        A list of characters representing possible final consonants.
-    vowels : list
-        A list of characters representing possible vowels.
-
-    Methods
-    -------
-    generate_word(word_length, start_vowel=False, end_vowel=False)
-        Generates a pseudo-word of the specified length.
-    generate_words(wordcount=1, word_length=None)
-        Generates a list of pseudo-words with the specified count and length.
     """
 
     def __init__(self, component_file='components.yaml'):
         """
-        Constructs a WordGenerator object and loads components from a YAML file.
+        Initialize and load components from a YAML file.
 
         Parameters
         ----------
-        component_file : str, optional
-            A string representing the path to the YAML file containing components.
+        component_file : str
+            The path to the file containing word components.
         """
-        with open(component_file) as f:
-            components = yaml.safe_load(f)
+        try:
+            with open(component_file, 'r') as f:
+                components = yaml.safe_load(f)
+        except FileNotFoundError:
+            print(f"File {component_file} not found.")
+            return
+        except yaml.YAMLError:
+            print("Invalid YAML file.")
+            return
 
-        self.initial_consonants = list(set(string.ascii_lowercase) - set('aeiou') - set('qxc') | set(''.join(components['initials'])))
-        self.final_consonants = list(set(string.ascii_lowercase) - set('aeiou') - set('qxcsj') | set(''.join(components['finals'])))
-        self.vowels = list(set(''.join(components['vowels'])))
-
-    def __del__(self):
-        """
-        Destructor for the WordGenerator class.
-
-        Deletes variables when the object is no longer in use.
-        """
-        del self.initial_consonants
-        del self.final_consonants
-        del self.vowels
-
+        self.rng = secrets.SystemRandom()
+        self.initial_consonants = bytearray(components['initials'], 'utf-8')
+        self.final_consonants = bytearray(components['finals'], 'utf-8')
+        self.vowels = bytearray(components['vowels'], 'utf-8')
 
     def generate_word(self, word_length, start_vowel=False, end_vowel=False):
         """
-        Generates a pseudo-word of the specified length.
+        Generate a pseudo-word of the specified length.
 
         Parameters
         ----------
         word_length : int
             The length of the pseudo-word to be generated.
         start_vowel : bool, optional
-            If True, the generated word will start with a vowel; otherwise, it will start with a consonant (default is False).
+            If True, the generated word will start with a vowel.
         end_vowel : bool, optional
-            If True, the generated word will end with a vowel; otherwise, it will end with a consonant (default is False).
+            If True, the generated word will end with a vowel.
 
         Returns
         -------
         str
-            The generated pseudo-word of the specified length.
+            The generated pseudo-word.
         """
-        letter_list = []
-        if not start_vowel:
-            letter_list.append(secrets.choice(self.initial_consonants))
-            word_length -= 1
+        if word_length <= 0:
+            return ""
 
-        while len(letter_list) < word_length:
-            letter_list.append(secrets.choice(self.vowels))
-            if len(letter_list) < word_length:
-                letter_list.append(secrets.choice(self.final_consonants))
+        letters = bytearray()
+        if start_vowel:
+            letters.append(self.rng.choice(self.vowels))
+        else:
+            letters.append(self.rng.choice(self.initial_consonants))
 
-        if end_vowel and not letter_list[-1] in self.vowels:
-            letter_list[-1] = secrets.choice(self.vowels)
+        for _ in range(1, word_length):
+            if len(letters) % 2 == 0:
+                letters.append(self.rng.choice(self.initial_consonants))
+            else:
+                letters.append(self.rng.choice(self.vowels))
 
-        generated_word = ''.join(letter_list)
+        if end_vowel:
+            letters[-1] = self.rng.choice(self.vowels)
 
-        # Zero out memory
-        del letter_list
-        del word_length
-        del start_vowel
-        del end_vowel
-        gc.collect()
+        word = letters.decode('utf-8')
 
-        return generated_word
+        # Zero out the byte array
+        for i in range(len(letters)):
+            letters[i] = 0
+
+        return word
+
 
 class PasswordGenerator:
     """
@@ -101,12 +85,12 @@ class PasswordGenerator:
     ----------
     word_generator : WordGenerator
         An instance of the WordGenerator class for generating pseudo words.
-    symbols : str
-        A string containing punctuation symbols.
-    digits : str
-        A string containing digits from 0 to 9.
+    symbols : bytearray
+        A bytearray containing punctuation symbols.
+    digits : bytearray
+        A bytearray containing digits from 0 to 9.
     """
-    
+
     def __init__(self, component_file='components.yaml'):
         """
         Initializes the PasswordGenerator class.
@@ -116,19 +100,10 @@ class PasswordGenerator:
         component_file : str, optional
             The path to the file containing word components (default is 'components.yaml').
         """
+        self.rng = secrets.SystemRandom()
         self.word_generator = WordGenerator(component_file)
-        self.symbols = string.punctuation
-        self.digits = string.digits
-
-    def __del__(self):
-        """
-        Destructor for the PasswordGenerator class.
-
-        Deletes variables when the object is no longer in use.
-        """
-        del self.word_generator
-        del self.symbols
-        del self.digits
+        self.symbols = bytearray(string.punctuation, 'utf-8')
+        self.digits = bytearray(string.digits, 'utf-8')
 
     def generate_password(self, password_length, num_pseudo_words):
         """
@@ -137,40 +112,51 @@ class PasswordGenerator:
         Parameters
         ----------
         password_length : int
-            The desired length of the password, up to 40.
+            The desired length of the password.
         num_pseudo_words : int
-            The number of pseudo words to be generated.
+            The number of pseudo words to include in the password.
 
         Returns
         -------
         str
             The generated secure password.
         """
-        if password_length > 40:
-            password_length = 40
-        elif password_length < 0:
-            password_length = 0
+        if password_length < 1:
+            return ""
 
         min_word_length = max(1, password_length // num_pseudo_words)
-        pseudo_words = [self.word_generator.generate_word(min_word_length) for _ in range(num_pseudo_words)]
-
+        pseudo_words = [self.word_generator.generate_word(min_word_length).encode('utf-8') for _ in range(num_pseudo_words)]
+        
         remaining_length = password_length - sum([len(pw) for pw in pseudo_words])
-        extra_characters = [secrets.choice(self.symbols + self.digits) for _ in range(remaining_length)]
+        extra_characters = [self.rng.choice(self.symbols + self.digits) for _ in range(remaining_length)]
 
-        combined = []
+        combined = bytearray()
         for i in range(len(pseudo_words)):
-            combined.append(pseudo_words[i])
+            combined.extend(pseudo_words[i])
             if i < len(extra_characters):
                 combined.append(extra_characters[i])
 
-        if password_length > 0 and secrets.randbelow(2):  # Randomly add symbol or digit at the beginning
-            combined.insert(0, secrets.choice(self.symbols + self.digits))
-            if len(combined) > password_length:
-                combined.pop()
+        if len(combined) < password_length:
+            combined.append(self.rng.choice(self.symbols + self.digits))
 
-        if password_length > 0 and secrets.randbelow(2):  # Randomly add symbol or digit at the end
-            combined.append(secrets.choice(self.symbols + self.digits))
-            if len(combined) > password_length:
-                combined.pop()
+        # Truncate or pad to meet the required password length
+        while len(combined) < password_length:
+            combined.append(self.rng.choice(self.symbols + self.digits))
 
-        return ''.join(combined)
+        while len(combined) > password_length:
+            del combined[-1]
+
+        password = combined.decode('utf-8')
+
+        # Zero out sensitive byte arrays
+        for i in range(len(combined)):
+            combined[i] = 0
+
+        for pw in pseudo_words:
+            for i in range(len(pw)):
+                pw[i] = 0
+
+        for i in range(len(extra_characters)):
+            extra_characters[i] = 0
+
+        return password

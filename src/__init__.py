@@ -8,7 +8,6 @@ from utils import read_config
 from generator import PasswordGenerator
 
 
-
 class PasswordManager:
 
    def __init__(self):
