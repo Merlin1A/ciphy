@@ -1,101 +1,85 @@
-# src/__init__.py
 import os
 import gc
 import fire
 import getpass
-from cipher import AESCipher
-from utils import read_config
-from generator import PasswordGenerator
+from utils import read_config  # Your import
+from generator import PasswordGenerator  # Your import
+from cipher import encrypt_file, decrypt_file  # New import
+from typing import List
 
 
 class PasswordManager:
+    """Manages password generation, encryption, and decryption."""
 
-   def __init__(self):
-      config_data = read_config('config.yaml')
+    def __init__(self):
+        """Initializes the PasswordManager."""
+        config_data = read_config('config.yaml')
+        self.encrypted_file_path = os.path.expanduser(config_data['encrypted_passwords_file_path'])
+        self.file_path = os.path.expanduser(config_data['passwords_file_path'])
+        self.password_generator = PasswordGenerator()
 
-      self.encrypted_file_path = os.path.expanduser(config_data['encrypted_passwords_file_path'])
-      self.file_path = os.path.expanduser(config_data['passwords_file_path'])
-      self.password_generator = PasswordGenerator()
-      self.AESCipher = AESCipher()
-      
-   def __del__(self):
-      del self.password_generator
-      del self.AESCipher
-      gc.collect()
+    def __del__(self):
+        """Destructor to clean up resources."""
+        del self.password_generator
+        gc.collect()
 
-   def gen_pass(self, password_length=8, num_pseudo_words=1, num_passwords=1):
-      passwords = list()
+    def generate_passwords(self, password_length: int = 8, num_pseudo_words: int = 1, num_passwords: int = 1) -> List[str]:
+        """
+        Generates a list of passwords.
 
-      for i in range(num_passwords):
-         passwords.append(self.password_generator.generate_password(password_length, num_pseudo_words))
-         
-      return passwords
-   
-   def encrypt(self, in_filename=None, out_filename=None, override=True):
-      """
-      Encrypts the contents of a file using the AESCipher instance. The user is prompted
-      to enter a password, which will be used for the encryption process. The encrypted 
-      file can be saved to a new file or overwrite the original file, based on the 
-      'override' parameter.
+        Parameters:
+        - password_length (int): The length of each password.
+        - num_pseudo_words (int): The number of pseudo-words to use.
+        - num_passwords (int): The number of passwords to generate.
 
-      Parameters
-      ----------
-      in_filename : str, optional
-         The input file path to be encrypted. If not provided, the instance's file_path attribute will be used.
+        Returns:
+        - List[str]: A list of generated passwords.
+        """
+        return [self.password_generator.generate_password(password_length, num_pseudo_words)
+                for _ in range(num_passwords)]
 
-      out_filename : str, optional
-         The output file path for the encrypted file. If not provided, the instance's encrypted_file_path attribute will be used.
-      
-      override : bool, optional
-         Determines whether the encrypted content should overwrite the original file. Default is True.
+    def encrypt(self, in_filename: str = None, out_filename: str = None, override: bool = True):
+        """
+        Encrypts a file with AES encryption.
 
-      Returns
-      ----------
-      None
-      """
+        Parameters:
+        - in_filename (str): The path of the input file. Defaults to self.file_path.
+        - out_filename (str): The path of the output file. Defaults to self.encrypted_file_path.
+        - override (bool): Whether to override the input file. Defaults to True.
+        """
+        password = getpass.getpass("Enter your password: ")
 
-      password = getpass.getpass("Enter your password: ")
+        if not in_filename:
+            in_filename = self.file_path
+        if not out_filename:
+            out_filename = self.encrypted_file_path
 
-      if not in_filename:
-         in_filename = self.file_path
+        encrypt_file(in_filename, out_filename, override, password)
 
-      if not out_filename:
-         out_filename = self.encrypted_file_path
-      
-      self.AESCipher.encrypt_file(in_filename, out_filename, override, password)
+    def decrypt(self, in_filename: str = None, out_filename: str = None):
+        """
+        Decrypts a file with AES encryption.
 
-   def decrypt(self, in_filename=None, out_filename=None):
-      """
-      Decrypts the contents of a file using the AESCipher instance. The user is prompted 
-      to enter a password, which will be used for the decryption process. The decrypted 
-      file can be saved to a new file or overwrite the original encrypted file.
+        Parameters:
+        - in_filename (str): The path of the input file. Defaults to self.encrypted_file_path.
+        - out_filename (str): The path of the output file. Defaults to self.file_path.
+        """
+        password = getpass.getpass("Enter your password: ")
 
-      Parameters
-      ----------
-      in_filename : str, optional
-         The input file path to be decrypted. If not provided, the instance's encrypted_file_path attribute will be used.
-         
-      out_filename : str, optional
-         The output file path for the decrypted file. If not provided, the instance's file_path attribute will be used.
+        if not in_filename:
+            in_filename = self.encrypted_file_path
+        if not out_filename:
+            out_filename = self.file_path
 
-      Returns
-      ----------
-      None
-      """
-      password = getpass.getpass("Enter your password: ")
+        decrypt_file(in_filename, out_filename, password)
 
-      if not in_filename:
-         in_filename = self.encypted_file_path
 
-      if not out_filename:
-         out_filename = self.file_path
-
-      self.AESCipher.decrypt_file(in_filename, out_filename, password)
-
-   
 def main():
+    """Entry point for the Fire CLI."""
     fire.Fire(PasswordManager)
 
 
-main()
+if __name__ == "__main__":
+    main()
+
 

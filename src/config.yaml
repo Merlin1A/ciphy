@@ -1,4 +1,4 @@
-encrypted_passwords_file_path: ~/.passwords.enc
-passwords_file_path: ~/.passwords.csv
+encrypted_passwords_file_path: ~/.ciphy/passwords.enc
+passwords_file_path: /dev/shm/passwords.csv
 ```
 
