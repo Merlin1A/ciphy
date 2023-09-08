@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from ciphy import main
+from src import main
 
 if __name__ == "__main__":
     main()

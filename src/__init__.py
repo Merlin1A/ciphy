@@ -1,4 +1,4 @@
-# ciphy/__init__.py
+# src/__init__.py
 import os
 import gc
 import fire
