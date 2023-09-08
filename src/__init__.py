@@ -2,9 +2,9 @@ import os
 import gc
 import fire
 import getpass
-from utils import read_config  # Your import
-from generator import PasswordGenerator  # Your import
-from cipher import encrypt_file, decrypt_file  # New import
+from utils import read_config, set_secure_permissions 
+from generator import PasswordGenerator  
+from cipher import encrypt_file, decrypt_file  
 from typing import List
 
 
@@ -17,11 +17,6 @@ class PasswordManager:
         self.encrypted_file_path = os.path.expanduser(config_data['encrypted_passwords_file_path'])
         self.file_path = os.path.expanduser(config_data['passwords_file_path'])
         self.password_generator = PasswordGenerator()
-
-    def __del__(self):
-        """Destructor to clean up resources."""
-        del self.password_generator
-        gc.collect()
 
     def generate_passwords(self, password_length: int = 8, num_pseudo_words: int = 1, num_passwords: int = 1) -> List[str]:
         """
@@ -55,6 +50,7 @@ class PasswordManager:
             out_filename = self.encrypted_file_path
 
         encrypt_file(in_filename, out_filename, override, password)
+        set_secure_permissions(out_filename)
 
     def decrypt(self, in_filename: str = None, out_filename: str = None):
         """
@@ -72,6 +68,7 @@ class PasswordManager:
             out_filename = self.file_path
 
         decrypt_file(in_filename, out_filename, password)
+        set_secure_permissions(out_filename)
 
 
 def main():

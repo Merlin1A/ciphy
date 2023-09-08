@@ -18,7 +18,6 @@ def zero_fill(byte_var):
     for i in range(len(byte_var)):
         byte_var[i] = 0
 
-
 def encrypt_file(in_filename, out_filename=None, override=True, password=None):
     """
     Encrypts a file using AES-GCM with a password-based key derivation function.
@@ -86,7 +85,6 @@ def encrypt_file(in_filename, out_filename=None, override=True, password=None):
         raise e
     finally:
         zero_fill(derived_key)
-
 
 def decrypt_file(in_filename, out_filename=None, password=None):
     """
